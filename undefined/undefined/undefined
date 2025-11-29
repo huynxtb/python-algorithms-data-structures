@@ -1,0 +1,91 @@
+class SuffixArray:
+    def __init__(self, text: str):
+        self.text = text
+        self.n = len(text)
+        self.suffix_array = []
+
+    def build_suffix_array(self):
+        """
+        Constructs suffix array using a classic O(n log n) approach based on sorting cyclic shifts.
+        This is a standard technique that constructs suffix array efficiently.
+        Returns:
+            List[int]: The suffix array for the string
+        """
+        s = self.text
+        n = self.n
+        # Convert characters to integer ranks
+        rank = [ord(c) for c in s]
+        k = 1
+        # suffix array initialization: indices 0 to n-1
+        sa = list(range(n))
+
+        # Temporary array for new ranks
+        tmp = [0] * n
+
+        # Define a comparison function for sorting using ranks and k-offset ranks
+        def key_func(i):
+            return (rank[i], rank[i + k] if i + k < n else -1)
+
+        while k < n:
+            # Sort using 2*k cyclic shifts by comparing rank and rank shifted by k
+            sa.sort(key=key_func)
+
+            # Build new rank array
+            tmp[sa[0]] = 0
+            for i in range(1, n):
+                tmp[sa[i]] = tmp[sa[i - 1]] + (key_func(sa[i - 1]) < key_func(sa[i]))
+
+            rank, tmp = tmp, rank
+            k <<= 1
+
+        self.suffix_array = sa
+        return sa
+
+    def search(self, pattern: str) -> list[int]:
+        """
+        Searches all occurrences of pattern in the text using the suffix array.
+        Returns a list of starting indices where the pattern appears.
+        Uses binary search for efficient pattern match retrieval.
+        """
+        if not self.suffix_array:
+            self.build_suffix_array()
+
+        n = self.n
+        text = self.text
+        sa = self.suffix_array
+        m = len(pattern)
+
+        def is_ge(idx):
+            # Check if suffix starting at idx is >= pattern lexicographically
+            substr = text[idx:idx + m]
+            return substr >= pattern
+
+        def is_gt(idx):
+            # Check if suffix starting at idx is > pattern lexicographically
+            substr = text[idx:idx + m]
+            return substr > pattern
+
+        # Binary search for left bound where suffixes >= pattern
+        left, right = 0, n
+        while left < right:
+            mid = (left + right) // 2
+            if is_ge(sa[mid]):
+                right = mid
+            else:
+                left = mid + 1
+
+        start = left
+
+        # Binary search for right bound where suffixes > pattern
+        left, right = 0, n
+        while left < right:
+            mid = (left + right) // 2
+            if is_gt(sa[mid]):
+                right = mid
+            else:
+                left = mid + 1
+
+        end = left
+
+        # Return all suffix array indices starting positions that match the pattern
+        return sorted(sa[start:end]) if start < end else []
